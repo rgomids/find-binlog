@@ -33,3 +33,4 @@ go.work.sum
 dist/
 binlog-finder/
 binlog-finder.zip
+binlog-finder

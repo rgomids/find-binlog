@@ -88,7 +88,7 @@ func listBinlogs(ctx context.Context) ([]string, error) {
 		"-N",
 		"-e", "SHOW BINARY LOGS;",
 	}
-	out, err := exec.CommandContext(ctx, "mysql", args...).Output()
+	out, err := exec.CommandContext(ctx, "./pkg/bin/mysql", args...).Output()
 	if err != nil {
 		return nil, fmt.Errorf("erro executando mysql: %w", err)
 	}
