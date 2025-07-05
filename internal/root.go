@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -42,7 +42,7 @@ func NewRootCmd() *cobra.Command {
 
 			binlogs, err := listBinlogs(ctx)
 			if err != nil {
-				return err
+				return fmt.Errorf("erro ao listar binlogs: %w", err)
 			}
 			for _, f := range binlogs {
 				pos, ts, found, err := scanBinlog(ctx, f, targetDate)
@@ -50,7 +50,7 @@ func NewRootCmd() *cobra.Command {
 					return err
 				}
 				if found {
-					fmt.Printf("Binlog: %s\nPosition: %s\nTimestamp: %s\n", f, pos, ts.Format("2006-01-02"))
+					fmt.Printf("Arquivo: %s\nPosição: %d\nData: %s\n", f, pos, ts.Format("2006-01-02"))
 					return nil
 				}
 			}
@@ -81,7 +81,7 @@ func listBinlogs(ctx context.Context) ([]string, error) {
 	}
 	out, err := exec.CommandContext(ctx, "mysql", args...).Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("erro executando mysql: %w", err)
 	}
 	var logs []string
 	scanner := bufio.NewScanner(bytes.NewReader(out))
@@ -92,63 +92,35 @@ func listBinlogs(ctx context.Context) ([]string, error) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("erro processando resposta: %w", err)
 	}
 	return logs, nil
 }
 
-func scanBinlog(ctx context.Context, file string, target time.Time) (string, time.Time, bool, error) {
+func scanBinlog(ctx context.Context, file string, target time.Time) (int64, time.Time, bool, error) {
 	args := []string{
 		"--read-from-remote-server",
 		"--host=" + host,
 		"--user=" + user,
 		"--password=" + password,
 		"--port=" + strconv.Itoa(port),
-		"--verbose",
 		"--base64-output=DECODE-ROWS",
+		"--verbose",
 		file,
 	}
 
-	cmd := exec.CommandContext(ctx, "./pkg/bin/mysqlbinlog", args...)
-	stdout, err := cmd.StdoutPipe()
+	out, err := exec.CommandContext(ctx, "./pkg/bin/mysqlbinlog", args...).CombinedOutput()
 	if err != nil {
-		return "", time.Time{}, false, err
-	}
-	if err := cmd.Start(); err != nil {
-		return "", time.Time{}, false, err
+		return 0, time.Time{}, false, fmt.Errorf("erro executando mysqlbinlog: %w", err)
 	}
 
-	rPos := regexp.MustCompile(`^# at\s+(\d+)`)
-	rTS := regexp.MustCompile(`^###\s*SET\s+TIMESTAMP=(\d+)`)
+	_, pos, ts, parseErr := ExtractBinlogPositionFromOutput(string(out), target)
+	if parseErr != nil {
+		if errors.Is(parseErr, ErrNoEventFound) {
+			return 0, time.Time{}, false, nil
+		}
+		return 0, time.Time{}, false, parseErr
+	}
 
-	scanner := bufio.NewScanner(stdout)
-	var (
-		pos string
-		ts  time.Time
-	)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if m := rPos.FindStringSubmatch(line); m != nil {
-			pos = m[1]
-			continue
-		}
-		if m := rTS.FindStringSubmatch(line); m != nil && pos != "" {
-			unixVal, err := strconv.ParseInt(m[1], 10, 64)
-			if err != nil {
-				continue
-			}
-			ts = time.Unix(unixVal, 0)
-			dateOnly, _ := time.Parse("2006-01-02", ts.Format("2006-01-02"))
-			if !dateOnly.Before(target) {
-				cmd.Process.Kill()
-				cmd.Wait()
-				return pos, dateOnly, true, nil
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return "", time.Time{}, false, err
-	}
-	cmd.Wait()
-	return "", time.Time{}, false, nil
+	return pos, ts, true, nil
 }
