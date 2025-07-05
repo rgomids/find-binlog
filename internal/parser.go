@@ -11,7 +11,7 @@ import (
 
 var ErrNoEventFound = errors.New("no compatible events")
 
-func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file string, pos int64, ts time.Time, err error) {
+func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file string, pos int64, ts time.Time, line int, err error) {
 	// regex helpers to capture the binlog file, the position and the event timestamp
 	rFile := regexp.MustCompile(`processing log events from (\S+),`)
 	rPos := regexp.MustCompile(`^# at\s+(\d+)`)
@@ -24,9 +24,11 @@ func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file 
 		currentPos int64
 		havePos    bool
 		binlogFile string
+		lineNumber int
 	)
 
 	for scanner.Scan() {
+		lineNumber++
 		line := strings.TrimSpace(scanner.Text())
 
 		// try to capture the binlog file name (only once)
@@ -56,7 +58,7 @@ func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file 
 			}
 
 			if !eventDate.Before(targetDate) {
-				return binlogFile, currentPos, eventDate, nil
+				return binlogFile, currentPos, eventDate, lineNumber, nil
 			}
 
 			// event is before the target, discard current position
@@ -74,7 +76,7 @@ func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file 
 
 			eventTime := time.Unix(unixVal, 0).UTC()
 			if !eventTime.Before(targetDate) {
-				return binlogFile, currentPos, eventTime, nil
+				return binlogFile, currentPos, eventTime, lineNumber, nil
 			}
 
 			// event is before the target, discard current position
@@ -83,8 +85,8 @@ func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file 
 	}
 
 	if err := scanner.Err(); err != nil {
-		return "", 0, time.Time{}, err
+		return "", 0, time.Time{}, 0, err
 	}
 
-	return "", 0, time.Time{}, ErrNoEventFound
+	return "", 0, time.Time{}, 0, ErrNoEventFound
 }
