@@ -61,3 +61,46 @@ func TestExtractBinlogPositionFromOutputSameTimestamp(t *testing.T) {
 		t.Errorf("expected ts %v, got %v", target, ts)
 	}
 }
+
+func TestExtractBinlogPositionFromOriginalCommitTimestamp(t *testing.T) {
+	data, err := os.ReadFile("testdata/sample_original_commit.binlog")
+	if err != nil {
+		t.Fatalf("failed to read sample: %v", err)
+	}
+	target := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	file, pos, ts, err := ExtractBinlogPositionFromOutput(string(data), target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if file != "binlog.000003" {
+		t.Errorf("expected file binlog.000003, got %s", file)
+	}
+	if pos != 128 {
+		t.Errorf("expected pos 128, got %d", pos)
+	}
+	expected := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC)
+	if !ts.Equal(expected) {
+		t.Errorf("expected ts %v, got %v", expected, ts)
+	}
+}
+
+func TestExtractBinlogPositionOriginalCommitTimestampMultiple(t *testing.T) {
+	data, err := os.ReadFile("testdata/sample_original_commit_multi.binlog")
+	if err != nil {
+		t.Fatalf("failed to read sample: %v", err)
+	}
+	target := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	file, pos, ts, err := ExtractBinlogPositionFromOutput(string(data), target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if file != "binlog.000004" {
+		t.Errorf("expected file binlog.000004, got %s", file)
+	}
+	if pos != 128 {
+		t.Errorf("expected pos 128, got %d", pos)
+	}
+	if !ts.Equal(target) {
+		t.Errorf("expected ts %v, got %v", target, ts)
+	}
+}

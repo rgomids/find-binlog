@@ -1,0 +1,5 @@
+mysqlbinlog: [Note] Start processing log events from binlog.000003, position 4.
+# at 4
+# original_commit_timestamp=1703980800000000 (2023-12-31 00:00:00)
+# at 128
+# original_commit_timestamp=1704844800000000 (2024-01-10 00:00:00)

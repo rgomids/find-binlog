@@ -16,6 +16,7 @@ func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file 
 	rFile := regexp.MustCompile(`processing log events from (\S+),`)
 	rPos := regexp.MustCompile(`^# at\s+(\d+)`)
 	rTS := regexp.MustCompile(`^###\s*SET\s+TIMESTAMP=(\d+)`)
+	rOrig := regexp.MustCompile(`^#\s*original_commit_timestamp=.*\((\d{4}-\d{2}-\d{2})`)
 
 	scanner := bufio.NewScanner(strings.NewReader(output))
 
@@ -44,6 +45,22 @@ func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file 
 			}
 			currentPos = p
 			havePos = true
+			continue
+		}
+
+		// handle MySQL 8.0+ commit timestamp comment
+		if m := rOrig.FindStringSubmatch(line); m != nil && havePos {
+			eventDate, err := time.Parse("2006-01-02", m[1])
+			if err != nil {
+				return "", 0, time.Time{}, err
+			}
+
+			if !eventDate.Before(targetDate) {
+				return binlogFile, currentPos, eventDate, nil
+			}
+
+			// event is before the target, discard current position
+			havePos = false
 			continue
 		}
 
