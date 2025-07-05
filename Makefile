@@ -16,6 +16,7 @@ package: $(MYSQLBINLOG)
 	cp $(BIN) dist/$(BIN)
 	cp $(MYSQLBINLOG) dist/pkg/bin/
 	cp README.md dist/
+	cd ./dist; zip -r ../binlog-finder.zip ./*; cd ../
 
 clean:
 	rm -f $(BIN)
