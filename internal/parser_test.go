@@ -8,7 +8,7 @@ import (
 )
 
 func TestExtractBinlogPositionFromOutput(t *testing.T) {
-	data, err := os.ReadFile("internal/testdata/sample.binlog")
+	data, err := os.ReadFile("testdata/sample.binlog")
 	if err != nil {
 		t.Fatalf("failed to read sample: %v", err)
 	}
@@ -30,7 +30,7 @@ func TestExtractBinlogPositionFromOutput(t *testing.T) {
 }
 
 func TestExtractBinlogPositionFromOutputNotFound(t *testing.T) {
-	data, err := os.ReadFile("internal/testdata/sample_no_event.binlog")
+	data, err := os.ReadFile("testdata/sample_no_event.binlog")
 	if err != nil {
 		t.Fatalf("failed to read sample: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestExtractBinlogPositionFromOutputNotFound(t *testing.T) {
 }
 
 func TestExtractBinlogPositionFromOutputSameTimestamp(t *testing.T) {
-	data, err := os.ReadFile("internal/testdata/sample_same_ts.binlog")
+	data, err := os.ReadFile("testdata/sample_same_ts.binlog")
 	if err != nil {
 		t.Fatalf("failed to read sample: %v", err)
 	}
