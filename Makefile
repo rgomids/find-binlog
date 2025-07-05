@@ -13,7 +13,7 @@ package: $(MYSQLBINLOG)
 	test -x $(MYSQLBINLOG)
 	$(MAKE) build
 	mkdir -p dist/pkg/bin
-	cp $(BIN) dist/$(BIN)
+	mv $(BIN) dist/$(BIN)
 	cp $(MYSQLBINLOG) dist/pkg/bin/
 	cp README.md dist/
 	cd ./dist; zip -r ../binlog-finder.zip ./*; cd ../
