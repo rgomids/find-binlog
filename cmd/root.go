@@ -46,12 +46,12 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 			for _, f := range binlogs {
-				pos, found, err := scanBinlog(ctx, f, targetDate)
+				pos, ts, found, err := scanBinlog(ctx, f, targetDate)
 				if err != nil {
 					return err
 				}
 				if found {
-					fmt.Printf("%s %s\n", f, pos)
+					fmt.Printf("Binlog: %s\nPosition: %s\nTimestamp: %s\n", f, pos, ts.Format("2006-01-02"))
 					return nil
 				}
 			}
@@ -98,7 +98,7 @@ func listBinlogs(ctx context.Context) ([]string, error) {
 	return logs, nil
 }
 
-func scanBinlog(ctx context.Context, file string, target time.Time) (string, bool, error) {
+func scanBinlog(ctx context.Context, file string, target time.Time) (string, time.Time, bool, error) {
 	args := []string{
 		"--read-from-remote-server",
 		"--host=" + host,
@@ -113,40 +113,45 @@ func scanBinlog(ctx context.Context, file string, target time.Time) (string, boo
 	cmd := exec.CommandContext(ctx, "./pkg/bin/mysqlbinlog", args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return "", false, err
+		return "", time.Time{}, false, err
 	}
 	if err := cmd.Start(); err != nil {
-		return "", false, err
+		return "", time.Time{}, false, err
 	}
 
 	rPos := regexp.MustCompile(`^# at\s+(\d+)`)
-	rDate := regexp.MustCompile(`^#(\d{6})\s+(\d{2}:\d{2}:\d{2})`)
+	rTS := regexp.MustCompile(`^###\s*SET\s+TIMESTAMP=(\d+)`)
 
 	scanner := bufio.NewScanner(stdout)
-	var pos string
+	var (
+		pos string
+		ts  time.Time
+	)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if m := rPos.FindStringSubmatch(line); m != nil {
 			pos = m[1]
 			continue
 		}
-		if m := rDate.FindStringSubmatch(line); m != nil {
-			ts, err := time.Parse("060102 15:04:05", m[1]+" "+m[2])
+		if m := rTS.FindStringSubmatch(line); m != nil && pos != "" {
+			unixVal, err := strconv.ParseInt(m[1], 10, 64)
 			if err != nil {
 				continue
 			}
-			if !ts.Before(target) {
+			ts = time.Unix(unixVal, 0)
+			dateOnly, _ := time.Parse("2006-01-02", ts.Format("2006-01-02"))
+			if !dateOnly.Before(target) {
 				cmd.Process.Kill()
 				cmd.Wait()
-				return pos, true, nil
+				return pos, dateOnly, true, nil
 			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return "", false, err
+		return "", time.Time{}, false, err
 	}
 	cmd.Wait()
-	return "", false, nil
+	return "", time.Time{}, false, nil
 }
 
 func Execute() {
