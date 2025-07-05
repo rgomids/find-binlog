@@ -1,8 +1,15 @@
 package cmd
 
 import (
+	"bufio"
+	"bytes"
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -27,15 +34,28 @@ func NewRootCmd() *cobra.Command {
 			if dateStr == "" {
 				return fmt.Errorf("date is required")
 			}
-			if _, err := time.Parse("2006-01-02", dateStr); err != nil {
+			targetDate, err := time.Parse("2006-01-02", dateStr)
+			if err != nil {
 				return fmt.Errorf("invalid date format (expected YYYY-MM-DD)")
 			}
 
-			fmt.Printf("host: %s\n", host)
-			fmt.Printf("port: %d\n", port)
-			fmt.Printf("user: %s\n", user)
-			fmt.Printf("password: %s\n", password)
-			fmt.Printf("date: %s\n", dateStr)
+			ctx := context.Background()
+
+			binlogs, err := listBinlogs(ctx)
+			if err != nil {
+				return err
+			}
+			for _, f := range binlogs {
+				pos, found, err := scanBinlog(ctx, f, targetDate)
+				if err != nil {
+					return err
+				}
+				if found {
+					fmt.Printf("%s %s\n", f, pos)
+					return nil
+				}
+			}
+			fmt.Printf("Nenhum evento encontrado a partir de %s\n", dateStr)
 			return nil
 		},
 	}
@@ -49,6 +69,84 @@ func NewRootCmd() *cobra.Command {
 	cmd.MarkFlagRequired("date")
 
 	return cmd
+}
+
+func listBinlogs(ctx context.Context) ([]string, error) {
+	args := []string{
+		"-h", host,
+		"-P", strconv.Itoa(port),
+		"-u", user,
+		"-p" + password,
+		"-N",
+		"-e", "SHOW BINARY LOGS;",
+	}
+	out, err := exec.CommandContext(ctx, "mysql", args...).Output()
+	if err != nil {
+		return nil, err
+	}
+	var logs []string
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) > 0 {
+			logs = append(logs, fields[0])
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return logs, nil
+}
+
+func scanBinlog(ctx context.Context, file string, target time.Time) (string, bool, error) {
+	args := []string{
+		"--read-from-remote-server",
+		"--host=" + host,
+		"--user=" + user,
+		"--password=" + password,
+		"--port=" + strconv.Itoa(port),
+		"--verbose",
+		"--base64-output=DECODE-ROWS",
+		file,
+	}
+
+	cmd := exec.CommandContext(ctx, "./pkg/bin/mysqlbinlog", args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", false, err
+	}
+	if err := cmd.Start(); err != nil {
+		return "", false, err
+	}
+
+	rPos := regexp.MustCompile(`^# at\s+(\d+)`)
+	rDate := regexp.MustCompile(`^#(\d{6})\s+(\d{2}:\d{2}:\d{2})`)
+
+	scanner := bufio.NewScanner(stdout)
+	var pos string
+	for scanner.Scan() {
+		line := scanner.Text()
+		if m := rPos.FindStringSubmatch(line); m != nil {
+			pos = m[1]
+			continue
+		}
+		if m := rDate.FindStringSubmatch(line); m != nil {
+			ts, err := time.Parse("060102 15:04:05", m[1]+" "+m[2])
+			if err != nil {
+				continue
+			}
+			if !ts.Before(target) {
+				cmd.Process.Kill()
+				cmd.Wait()
+				return pos, true, nil
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", false, err
+	}
+	cmd.Wait()
+	return "", false, nil
 }
 
 func Execute() {
