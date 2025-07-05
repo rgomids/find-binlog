@@ -1,4 +1,4 @@
-module github.com/example/find-binlog
+module github.com/rgomids/find-binlog
 
 go 1.23.8
 

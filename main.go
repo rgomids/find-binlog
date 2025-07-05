@@ -1,6 +1,6 @@
 package main
 
-import "github.com/example/find-binlog/cmd"
+import "github.com/rgomids/find-binlog/cmd"
 
 func main() {
 	cmd.Execute()
