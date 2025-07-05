@@ -1,0 +1,5 @@
+mysqlbinlog: [Note] Start processing log events from binlog.000001, position 4.
+# at 4
+### SET TIMESTAMP=1701388800
+# at 128
+### SET TIMESTAMP=1704067200
