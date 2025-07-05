@@ -43,7 +43,7 @@ func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file 
 		if m := rPos.FindStringSubmatch(line); m != nil {
 			p, err := strconv.ParseInt(m[1], 10, 64)
 			if err != nil {
-				return "", 0, time.Time{}, err
+				return "", 0, time.Time{}, 0, err
 			}
 			currentPos = p
 			havePos = true
@@ -54,7 +54,7 @@ func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file 
 		if m := rOrig.FindStringSubmatch(line); m != nil && havePos {
 			eventDate, err := time.Parse("2006-01-02", m[1])
 			if err != nil {
-				return "", 0, time.Time{}, err
+				return "", 0, time.Time{}, 0, err
 			}
 
 			if !eventDate.Before(targetDate) {
@@ -71,7 +71,7 @@ func ExtractBinlogPositionFromOutput(output string, targetDate time.Time) (file 
 		if m := rTS.FindStringSubmatch(line); m != nil && havePos {
 			unixVal, err := strconv.ParseInt(m[1], 10, 64)
 			if err != nil {
-				return "", 0, time.Time{}, err
+				return "", 0, time.Time{}, 0, err
 			}
 
 			eventTime := time.Unix(unixVal, 0).UTC()
