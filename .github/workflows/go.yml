@@ -29,3 +29,6 @@ jobs:
 
     - name: Check mysqlbinlog
       run: test -x pkg/bin/mysqlbinlog || ls -l pkg/bin/mysqlbinlog
+
+    - name: Check mysql
+      run: test -x pkg/bin/mysql || ls -l pkg/bin/mysql
