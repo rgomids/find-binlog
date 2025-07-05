@@ -1,11 +1,10 @@
-package cmd
+package internal
 
 import (
 	"bufio"
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -152,10 +151,4 @@ func scanBinlog(ctx context.Context, file string, target time.Time) (string, tim
 	}
 	cmd.Wait()
 	return "", time.Time{}, false, nil
-}
-
-func Execute() {
-	if err := NewRootCmd().Execute(); err != nil {
-		os.Exit(1)
-	}
 }
