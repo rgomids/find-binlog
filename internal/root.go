@@ -15,11 +15,12 @@ import (
 )
 
 var (
-	host     string
-	dateStr  string
-	port     int
-	user     string
-	password string
+	host      string
+	dateStr   string
+	port      int
+	user      string
+	password  string
+	frameshot bool
 )
 
 func NewRootCmd() *cobra.Command {
@@ -45,11 +46,18 @@ func NewRootCmd() *cobra.Command {
 				return fmt.Errorf("erro ao listar binlogs: %w", err)
 			}
 			for _, f := range binlogs {
-				pos, ts, found, err := scanBinlog(ctx, f, targetDate)
+				pos, ts, lineNum, out, found, err := scanBinlog(ctx, f, targetDate)
 				if err != nil {
 					return err
 				}
 				if found {
+					if frameshot {
+						path, err := SaveFrameShot(out, lineNum, f)
+						if err != nil {
+							return err
+						}
+						fmt.Printf("Frameshot salvo em %s\n", path)
+					}
 					fmt.Printf("Arquivo: %s\nPosição: %d\nData: %s\n", f, pos, ts.Format("2006-01-02"))
 					return nil
 				}
@@ -64,6 +72,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&port, "port", "P", 3306, "MySQL port")
 	cmd.Flags().StringVarP(&user, "user", "u", "", "MySQL user")
 	cmd.Flags().StringVarP(&password, "password", "p", "", "MySQL password")
+	cmd.Flags().BoolVar(&frameshot, "frameshot", false, "save 100 lines before and after the match")
 	cmd.MarkFlagRequired("host")
 	cmd.MarkFlagRequired("date")
 
@@ -97,7 +106,7 @@ func listBinlogs(ctx context.Context) ([]string, error) {
 	return logs, nil
 }
 
-func scanBinlog(ctx context.Context, file string, target time.Time) (int64, time.Time, bool, error) {
+func scanBinlog(ctx context.Context, file string, target time.Time) (int64, time.Time, int, string, bool, error) {
 	args := []string{
 		"--read-from-remote-server",
 		"--host=" + host,
@@ -111,16 +120,16 @@ func scanBinlog(ctx context.Context, file string, target time.Time) (int64, time
 
 	out, err := exec.CommandContext(ctx, "./pkg/bin/mysqlbinlog", args...).CombinedOutput()
 	if err != nil {
-		return 0, time.Time{}, false, fmt.Errorf("erro executando mysqlbinlog: %w", err)
+		return 0, time.Time{}, 0, "", false, fmt.Errorf("erro executando mysqlbinlog: %w", err)
 	}
 
-	_, pos, ts, parseErr := ExtractBinlogPositionFromOutput(string(out), target)
+	_, pos, ts, lineNum, parseErr := ExtractBinlogPositionFromOutput(string(out), target)
 	if parseErr != nil {
 		if errors.Is(parseErr, ErrNoEventFound) {
-			return 0, time.Time{}, false, nil
+			return 0, time.Time{}, 0, string(out), false, nil
 		}
-		return 0, time.Time{}, false, parseErr
+		return 0, time.Time{}, 0, string(out), false, parseErr
 	}
 
-	return pos, ts, true, nil
+	return pos, ts, lineNum, string(out), true, nil
 }
