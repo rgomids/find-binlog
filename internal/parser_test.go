@@ -165,3 +165,28 @@ func TestSaveFrameShot(t *testing.T) {
 		t.Errorf("last line mismatch: %s", saved[len(saved)-1])
 	}
 }
+
+func TestExtractClosestEventFromOutput(t *testing.T) {
+	data, err := os.ReadFile("testdata/sample_no_event.binlog")
+	if err != nil {
+		t.Fatalf("failed to read sample: %v", err)
+	}
+	target := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	file, pos, ts, lineNum, err := ExtractClosestEventFromOutput(string(data), target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if file != "binlog.000001" {
+		t.Errorf("expected file binlog.000001, got %s", file)
+	}
+	if pos != 128 {
+		t.Errorf("expected pos 128, got %d", pos)
+	}
+	expected := time.Unix(1695000000, 0).UTC()
+	if !ts.Equal(expected) {
+		t.Errorf("expected ts %v, got %v", expected, ts)
+	}
+	if lineNum != 5 {
+		t.Errorf("expected line 5, got %d", lineNum)
+	}
+}

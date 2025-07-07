@@ -45,6 +45,16 @@ func NewRootCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("erro ao listar binlogs: %w", err)
 			}
+			var (
+				closestFile string
+				closestPos  int64
+				closestTS   time.Time
+				closestLine int
+				closestOut  string
+				haveClosest bool
+				bestDiff    time.Duration
+			)
+
 			for _, f := range binlogs {
 				pos, ts, lineNum, out, found, err := scanBinlog(ctx, f, targetDate)
 				if err != nil {
@@ -61,7 +71,41 @@ func NewRootCmd() *cobra.Command {
 					fmt.Printf("Arquivo: %s\nPosição: %d\nData: %s\n", f, pos, ts.Format("2006-01-02"))
 					return nil
 				}
+
+				cFile, cPos, cTS, cLine, err := ExtractClosestEventFromOutput(out, targetDate)
+				if err != nil && !errors.Is(err, ErrNoEventFound) {
+					return err
+				}
+				if err == nil {
+					diff := targetDate.Sub(cTS)
+					if diff < 0 {
+						diff = -diff
+					}
+					if !haveClosest || diff < bestDiff {
+						haveClosest = true
+						bestDiff = diff
+						closestFile = cFile
+						closestPos = cPos
+						closestTS = cTS
+						closestLine = cLine
+						closestOut = out
+					}
+				}
 			}
+
+			if haveClosest {
+				if frameshot {
+					path, err := SaveFrameShot(closestOut, closestLine, closestFile)
+					if err != nil {
+						return err
+					}
+					fmt.Printf("Frameshot salvo em %s\n", path)
+				}
+				fmt.Printf("Data exata não encontrada. Evento mais próximo:\n")
+				fmt.Printf("Arquivo: %s\nPosição: %d\nData: %s\n", closestFile, closestPos, closestTS.Format("2006-01-02"))
+				return nil
+			}
+
 			fmt.Printf("Nenhum evento encontrado a partir de %s\n", dateStr)
 			return nil
 		},
