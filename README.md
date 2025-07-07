@@ -2,8 +2,7 @@
 
 ## 📦 **Pré-requisitos**
 - Go 1.23+
-- Binário do `mysqlbinlog` compatível com sua versão do MySQL (ex: `8.0.mysql_aurora.3.08.2`)
-- Posicione o `mysqlbinlog` em `pkg/bin/` com permissão de execução
+- Os binários `mysql` e `mysqlbinlog` já estão incluídos em `pkg/bin/` (versão 8.0). Se precisar de outra versão, substitua-os manualmente.
 
 ## 🚀 **Instalação**
 Para compilar o projeto:
@@ -32,42 +31,6 @@ make package
 ```
 
 ## 🧠 **Notas sobre compatibilidade**
-* Este projeto foi testado com MySQL 8.0 e Aurora 3.08.2
-* O binário `mysqlbinlog` deve ser da mesma versão do servidor
-* Você pode baixá-lo manualmente em [https://dev.mysql.com/downloads/mysql/](https://dev.mysql.com/downloads/mysql/)
-
-Para baixar o binário `mysqlbinlog` compatível com o **MySQL 8.0**, siga os passos abaixo:
-
----
-
-### 📦 Baixar `mysqlbinlog` (MySQL 8.0)
-
-#### 1. Acesse o site oficial da Oracle:
-
-[https://dev.mysql.com/downloads/mysql/](https://dev.mysql.com/downloads/mysql/)
-
-#### 2. Escolha:
-
-* **Versão:** 8.0.36 (ou mais próxima da usada no seu Aurora)
-* **OS:** Linux - Generic
-
-#### 3. Baixe o pacote tar:
-
-Exemplo para Linux x86_64:
-
-```bash
-wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.36-linux-glibc2.28-x86_64.tar.xz
-```
-
-#### 4. Extraia o binário:
-
-```bash
-tar -xf mysql-8.0.36-linux-glibc2.28-x86_64.tar.xz
-```
-
-#### 5. Copie o `mysqlbinlog` para seu projeto:
-
-```bash
-cp mysql-8.0.36-linux-glibc2.28-x86_64/bin/mysqlbinlog ./pkg/bin/
-chmod +x ./pkg/bin/mysqlbinlog
-```
+* Este projeto foi testado com MySQL 8.0 e Aurora 3.08.2.
+* Os binários `mysql` e `mysqlbinlog` que acompanham este repositório estão nessa mesma versão.
+* Caso precise de outra versão, baixe os binários em [https://dev.mysql.com/downloads/mysql/](https://dev.mysql.com/downloads/mysql/) e substitua os arquivos em `pkg/bin/`.
