@@ -29,6 +29,7 @@ make package
   --password <password> \
   --date 2025-03-01
 ```
+Se não houver evento para a data informada, o binlog com a data mais próxima será exibido.
 
 ## 🧠 **Notas sobre compatibilidade**
 * Este projeto foi testado com MySQL 8.0 e Aurora 3.08.2.
